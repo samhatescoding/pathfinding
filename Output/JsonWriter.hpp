@@ -46,7 +46,7 @@ public:
         json << "],\n  \"path\": [";
         const int length = grid.getPathLength();
         if (length >= 0) {
-            const GridNode<T>* current = grid.getStart();
+            const Node<T>* current = grid.getStart();
             for (int step = 0; step <= length; ++step) {
                 if (step != 0) json << ", ";
                 json << grid.getIndex(current->getX(), current->getY());

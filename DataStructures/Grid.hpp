@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GridNode.hpp"
+#include "Node.hpp"
 
 #include <stdexcept>
 #include <string>
@@ -42,14 +42,14 @@ public:
         }
 
         // Link only walkable cells. Reserve above keeps these pointers stable.
-        const auto walkableAt = [this](int x, int y) -> GridNode<T>* {
+        const auto walkableAt = [this](int x, int y) -> Node<T>* {
             if (x < 0 || x >= width_ || y < 0 || y >= height_) return nullptr;
-            GridNode<T>& candidate = getAt(x, y);
+            Node<T>& candidate = getAt(x, y);
             return candidate.getBlocked() ? nullptr : &candidate;
         };
         for (int y = 0; y < height_; ++y) {
             for (int x = 0; x < width_; ++x) {
-                GridNode<T>& current = getAt(x, y);
+                Node<T>& current = getAt(x, y);
                 if (current.getBlocked()) continue;
                 current.right = walkableAt(x + 1, y);
                 current.down = walkableAt(x, y + 1);
@@ -65,28 +65,31 @@ public:
     Grid& operator=(Grid&&) = delete;
 
     int getIndex(int x, int y) const { return y * width_ + x; }
-    GridNode<T>* getStart() { return start_; }
-    const GridNode<T>* getStart() const { return start_; }
-    GridNode<T>* getGoal() { return goal_; }
-    const GridNode<T>* getGoal() const { return goal_; }
+    Node<T>* getStart() { return start_; }
+    const Node<T>* getStart() const { return start_; }
+    Node<T>* getGoal() { return goal_; }
+    const Node<T>* getGoal() const { return goal_; }
     int getStartIndex() const { return getIndex(start_->getX(), start_->getY()); }
     int getGoalIndex() const { return getIndex(goal_->getX(), goal_->getY()); }
     int getNodeCount() const { return static_cast<int>(nodes_.size()); }
-    GridNode<T>& getNode(int index) { return nodes_[index]; }
-    const GridNode<T>& getNode(int index) const { return nodes_[index]; }
+    Node<T>& getNode(int index) { return nodes_[index]; }
+    const Node<T>& getNode(int index) const { return nodes_[index]; }
     const std::vector<std::string>& getRows() const { return rows_; }
 
     void clearSearch() {
-        for (GridNode<T>& current : nodes_) {
+        for (Node<T>& current : nodes_) {
             current.prev = nullptr;
             current.next = nullptr;
+            current.link = nullptr;
+            current.priority = 0;
             current.discovered = false;
+            current.settled = false;
             current.discoveredTime = 0;
         }
     }
 
     int getPathLength() const {
-        const GridNode<T>* current = start_;
+        const Node<T>* current = start_;
         for (int steps = 0; current != nullptr && steps < getNodeCount(); ++steps) {
             if (current == goal_) return steps;
             current = current->next;
@@ -95,12 +98,12 @@ public:
     }
 
 private:
-    GridNode<T>& getAt(int x, int y) { return nodes_[getIndex(x, y)]; }
+    Node<T>& getAt(int x, int y) { return nodes_[getIndex(x, y)]; }
 
     std::vector<std::string> rows_;
     int width_;
     int height_;
-    std::vector<GridNode<T>> nodes_;
-    GridNode<T>* start_ = nullptr;
-    GridNode<T>* goal_ = nullptr;
+    std::vector<Node<T>> nodes_;
+    Node<T>* start_ = nullptr;
+    Node<T>* goal_ = nullptr;
 };

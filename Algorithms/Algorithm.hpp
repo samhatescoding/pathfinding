@@ -9,10 +9,10 @@ class Algorithm {
 public:
     virtual ~Algorithm() = default;
     virtual const char* getName() const = 0;
-    virtual GridNode<T>* run(Grid<T>& grid) const = 0;
+    virtual Node<T>* run(Grid<T>& grid) const = 0;
 
 protected:
-    static GridNode<T>* finish(Grid<T>& grid, const std::vector<int>& parent, bool found) {
+    static Node<T>* finish(Grid<T>& grid, const std::vector<int>& parent, bool found) {
         if (!found) return nullptr;
 
         for (int current = grid.getGoalIndex(); parent[current] != -1; current = parent[current]) {

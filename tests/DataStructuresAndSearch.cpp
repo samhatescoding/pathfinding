@@ -1,9 +1,13 @@
 #include "../Algorithms/BreadthFirstSearch.hpp"
 #include "../Algorithms/DepthFirstSearch.hpp"
+#include "../Algorithms/Dijkstra.hpp"
+#include "../Algorithms/Greedy.hpp"
+#include "../DataStructures/PriorityQueue.hpp"
 #include "../DataStructures/Queue.hpp"
 #include "../DataStructures/Stack.hpp"
 
 #include <cassert>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -15,7 +19,7 @@ template <typename T>
 std::vector<int> path(const Grid<T>& grid) {
     std::vector<int> result;
     if (grid.getPathLength() < 0) return result;
-    const GridNode<T>* current = grid.getStart();
+    const Node<T>* current = grid.getStart();
     while (current != nullptr) {
         result.push_back(grid.getIndex(current->getX(), current->getY()));
         current = current->next;
@@ -50,37 +54,63 @@ void assertDiscoveryTimes(const Grid<T>& grid) {
 }
 
 void testContainers() {
-    Queue<std::string> queue;
+    Grid<int> grid({"S...G"});
+    Node<int>* first = &grid.getNode(0);
+    Node<int>* second = &grid.getNode(1);
+    Node<int>* third = &grid.getNode(2);
+
+    Queue<int> queue;
     assert(queue.isEmpty());
     try { queue.getFront(); assert(false); } catch (const std::out_of_range&) {}
     try { queue.pop(); assert(false); } catch (const std::out_of_range&) {}
-    queue.push("first");
-    queue.push("second");
-    assert(queue.getSize() == 2 && queue.getFront() == "first");
-    Queue<std::string> movedQueue(std::move(queue));
+    queue.push(first);
+    queue.push(second);
+    assert(queue.getSize() == 2 && queue.getFront() == first);
+    Queue<int> movedQueue(std::move(queue));
     assert(queue.isEmpty() && movedQueue.getSize() == 2);
-    assert(movedQueue.pop() == "first");
-    assert(movedQueue.pop() == "second");
+    assert(movedQueue.pop() == first && first->link == nullptr);
+    assert(movedQueue.pop() == second && second->link == nullptr);
     assert(movedQueue.isEmpty());
-    movedQueue.push("again");
-    assert(movedQueue.getFront() == "again");
+    movedQueue.push(first);
+    movedQueue.clear();
+    assert(first->link == nullptr);
+
+    PriorityQueue<int> priorityQueue;
+    assert(priorityQueue.isEmpty());
+    try { priorityQueue.getFront(); assert(false); } catch (const std::out_of_range&) {}
+    try { priorityQueue.pop(); assert(false); } catch (const std::out_of_range&) {}
+    assert(priorityQueue.push(first, 4));
+    assert(priorityQueue.push(second, 1));
+    assert(priorityQueue.push(third, 3));
+    assert(!priorityQueue.push(first, 5));
+    assert(priorityQueue.push(first, 0));
+    assert(priorityQueue.getSize() == 3);
+    assert(priorityQueue.getFront() == std::make_pair(first, 0));
+    PriorityQueue<int> movedPriorityQueue(std::move(priorityQueue));
+    assert(priorityQueue.isEmpty() && movedPriorityQueue.getSize() == 3);
+    assert(movedPriorityQueue.pop() == std::make_pair(first, 0));
+    assert(movedPriorityQueue.pop() == std::make_pair(second, 1));
+    assert(movedPriorityQueue.pop() == std::make_pair(third, 3));
+    assert(first->link == nullptr && second->link == nullptr && third->link == nullptr);
+    assert(movedPriorityQueue.push(first, 2));
+    movedPriorityQueue.clear();
+    assert(movedPriorityQueue.isEmpty() && first->link == nullptr);
 
     Stack<int> stack;
     assert(stack.isEmpty());
     try { stack.getTop(); assert(false); } catch (const std::out_of_range&) {}
     try { stack.pop(); assert(false); } catch (const std::out_of_range&) {}
-    stack.push(1);
-    stack.push(2);
-    assert(stack.getSize() == 2 && stack.getTop() == 2);
+    stack.push(first);
+    stack.push(second);
+    assert(stack.getSize() == 2 && stack.getTop() == second);
     Stack<int> movedStack;
     movedStack = std::move(stack);
-    assert(stack.isEmpty() && movedStack.getTop() == 2);
-    assert(movedStack.pop() == 2);
-    assert(movedStack.getTop() == 1);
+    assert(stack.isEmpty() && movedStack.getTop() == second);
+    assert(movedStack.pop() == second && second->link == nullptr);
+    assert(movedStack.getTop() == first);
     movedStack.clear();
-    assert(movedStack.isEmpty());
+    assert(movedStack.isEmpty() && first->link == nullptr);
 }
-
 template <template <typename> class Search, typename T>
 void testSearch() {
     Grid<T> grid({"S..", "...", "G.."});
@@ -92,7 +122,7 @@ void testSearch() {
     const auto iterativeTimes = discoveryTimes(grid);
     assert(grid.getStart()->discoveredTime == 1);
     assertDiscoveryTimes(grid);
-    GridNode<T>* recursiveResult = search.runRecursive(grid);
+    Node<T>* recursiveResult = search.runRecursive(grid);
     assertDiscoveryTimes(grid);
     if constexpr (std::is_same_v<Search<T>, BreadthFirstSearch<T>>) {
         assert(recursiveResult == grid.getGoal());
@@ -153,7 +183,7 @@ void testDfsIterative() {
     assert(grid.getNode(1).discoveredTime == 3);
     assert(grid.getStart()->next == nullptr);
     assert(grid.getPathLength() == -1);
-    const GridNode<int>* current = grid.getGoal();
+    const Node<int>* current = grid.getGoal();
     for (int steps = 0; current != grid.getStart() && steps < grid.getNodeCount(); ++steps) {
         current = current->prev;
         assert(current != nullptr);
@@ -161,6 +191,71 @@ void testDfsIterative() {
     assert(current == grid.getStart());
     assert(dfs.run(grid) == grid.getStart());
     assert(grid.getPathLength() >= 0);
+}
+
+template <typename T>
+void testDijkstra() {
+    Grid<T> grid({"S..", ".#.", "..G"});
+    Dijkstra<T> search;
+    Algorithm<T>& algorithm = search;
+
+    assert(algorithm.run(grid) == grid.getStart());
+    assert(grid.getPathLength() == 4);
+    assert(grid.getStart()->settled);
+    assert(grid.getGoal()->settled);
+    assertDiscoveryTimes(grid);
+    const auto route = path(grid);
+    assert(route.front() == grid.getStartIndex());
+    assert(route.back() == grid.getGoalIndex());
+    for (std::size_t i = 1; i < route.size(); ++i) {
+        const auto& from = grid.getNode(route[i - 1]);
+        const auto& to = grid.getNode(route[i]);
+        assert(!to.getBlocked());
+        assert(std::abs(from.getX() - to.getX()) + std::abs(from.getY() - to.getY()) == 1);
+    }
+
+    const auto times = discoveryTimes(grid);
+    assert(search.run(grid) == grid.getStart());
+    assert(path(grid) == route);
+    assert(discoveryTimes(grid) == times);
+
+    grid.clearSearch();
+    for (int i = 0; i < grid.getNodeCount(); ++i) {
+        assert(!grid.getNode(i).settled);
+    }
+
+    Grid<T> blocked({"S#G"});
+    assert(search.run(blocked) == nullptr);
+    assert(blocked.getPathLength() == -1);
+    assert(blocked.getStart()->settled);
+    assert(!blocked.getGoal()->settled);
+    assert(blocked.getStart()->discoveredTime == 1);
+    assert(blocked.getGoal()->discoveredTime == 0);
+}
+
+template <typename T>
+void testGreedy() {
+    Grid<T> grid({"S..", ".#.", "..G"});
+    Greedy<T> search;
+    Algorithm<T>& algorithm = search;
+
+    assert(algorithm.run(grid) == grid.getStart());
+    assert(grid.getPathLength() == 4);
+    assert(grid.getStart()->settled);
+    assert(grid.getGoal()->settled);
+    assertDiscoveryTimes(grid);
+    const auto route = path(grid);
+    assert(route.front() == grid.getStartIndex());
+    assert(route.back() == grid.getGoalIndex());
+
+    assert(search.run(grid) == grid.getStart());
+    assert(path(grid) == route);
+
+    Grid<T> blocked({"S#G"});
+    assert(search.run(blocked) == nullptr);
+    assert(blocked.getPathLength() == -1);
+    assert(blocked.getStart()->settled);
+    assert(!blocked.getGoal()->discovered);
 }
 
 void testNodeValues() {
@@ -188,6 +283,10 @@ int main() {
     testNodeValues();
     testBfsPredecessors();
     testDfsIterative();
+    testDijkstra<int>();
+    testDijkstra<std::string>();
+    testGreedy<int>();
+    testGreedy<std::string>();
     testSearch<BreadthFirstSearch, int>();
     testSearch<DepthFirstSearch, int>();
     testSearch<BreadthFirstSearch, std::string>();

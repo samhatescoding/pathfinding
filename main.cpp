@@ -1,5 +1,7 @@
 #include "Algorithms/BreadthFirstSearch.hpp"
 #include "Algorithms/DepthFirstSearch.hpp"
+#include "Algorithms/Dijkstra.hpp"
+#include "Algorithms/Greedy.hpp"
 #include "DataStructures/Grid.hpp"
 #include "Output/JsonWriter.hpp"
 
@@ -23,10 +25,10 @@ int main() {
             ".............G",
         });
 
-        // Choose BreadthFirstSearch or DepthFirstSearch.
+        // Choose BreadthFirstSearch, DepthFirstSearch, Dijkstra, or Greedy.
         std::unique_ptr<Algorithm<CellValue>> algorithm =
             std::make_unique<BreadthFirstSearch<CellValue>>();
-        GridNode<CellValue>* first = algorithm->run(grid);
+        Node<CellValue>* first = algorithm->run(grid);
         JsonWriter::write("web/run.json", grid, algorithm->getName());
         std::cout << algorithm->getName() << " wrote web/run.json: ";
         const int steps = grid.getPathLength();
